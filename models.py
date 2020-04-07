@@ -85,7 +85,6 @@ def create_modules(module_defs):
 
 class Upsample(nn.Module):
     """ nn.Upsample is deprecated """
-
     def __init__(self, scale_factor, mode="nearest"):
         super(Upsample, self).__init__()
         self.scale_factor = scale_factor
@@ -98,14 +97,12 @@ class Upsample(nn.Module):
 
 class EmptyLayer(nn.Module):
     """Placeholder for 'route' and 'shortcut' layers"""
-
     def __init__(self):
         super(EmptyLayer, self).__init__()
 
 
 class YOLOLayer(nn.Module):
     """Detection layer"""
-
     def __init__(self, anchors, num_classes, img_dim=416):
         super(YOLOLayer, self).__init__()
         self.anchors = anchors
@@ -122,18 +119,19 @@ class YOLOLayer(nn.Module):
 
     def compute_grid_offsets(self, grid_size, cuda=True):
         self.grid_size = grid_size
-        g = self.grid_size
+        g = self.grid_size                                                                   # 13
         FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
-        self.stride = self.img_dim / self.grid_size
+        self.stride = self.img_dim / self.grid_size                                          # 32=416/13
         # Calculate offsets for each grid
-        self.grid_x = torch.arange(g).repeat(g, 1).view([1, 1, g, g]).type(FloatTensor)
-        self.grid_y = torch.arange(g).repeat(g, 1).t().view([1, 1, g, g]).type(FloatTensor)
+        self.grid_x = torch.arange(g).repeat(g, 1).view([1, 1, g, g]).type(FloatTensor)      # 1x1x13x13
+        self.grid_y = torch.arange(g).repeat(g, 1).t().view([1, 1, g, g]).type(FloatTensor)  # 1x1x13x13
         self.scaled_anchors = FloatTensor([(a_w / self.stride, a_h / self.stride) for a_w, a_h in self.anchors])
-        self.anchor_w = self.scaled_anchors[:, 0:1].view((1, self.num_anchors, 1, 1))
-        self.anchor_h = self.scaled_anchors[:, 1:2].view((1, self.num_anchors, 1, 1))
+        #self.anchors:[(116, 90), (156, 198), (373, 326)]
+        #self.scaled_anchors:[[ 3.6250,  2.8125],[ 4.8750,  6.1875],[11.6562, 10.1875]]
+        self.anchor_w = self.scaled_anchors[:, 0:1].view((1, self.num_anchors, 1, 1))        # 1x3x1x1
+        self.anchor_h = self.scaled_anchors[:, 1:2].view((1, self.num_anchors, 1, 1))        # 1x3x1x1
 
     def forward(self, x, targets=None, img_dim=None):
-
         # Tensors for cuda support
         FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
         LongTensor = torch.cuda.LongTensor if x.is_cuda else torch.LongTensor
@@ -142,7 +140,7 @@ class YOLOLayer(nn.Module):
         self.img_dim = img_dim
         num_samples = x.size(0)
         grid_size = x.size(2)
-
+        # x:batch x 255 x 13 x 13 -->batch x 3 x 85 x 13 x 13 -->batch x 3 x 13 x 13 x 85
         prediction = (
             x.view(num_samples, self.num_anchors, self.num_classes + 5, grid_size, grid_size)
             .permute(0, 1, 3, 4, 2)
@@ -150,10 +148,10 @@ class YOLOLayer(nn.Module):
         )
 
         # Get outputs
-        x = torch.sigmoid(prediction[..., 0])  # Center x
-        y = torch.sigmoid(prediction[..., 1])  # Center y
-        w = prediction[..., 2]  # Width
-        h = prediction[..., 3]  # Height
+        x = torch.sigmoid(prediction[..., 0])  # Center x   [1, 3, 13, 13]
+        y = torch.sigmoid(prediction[..., 1])  # Center y   [1, 3, 13, 13]
+        w = prediction[..., 2]                 # Width      [1, 3, 13, 13]
+        h = prediction[..., 3]                 # Height     [1, 3, 13, 13]
         pred_conf = torch.sigmoid(prediction[..., 4])  # Conf
         pred_cls = torch.sigmoid(prediction[..., 5:])  # Cls pred.
 
@@ -176,6 +174,7 @@ class YOLOLayer(nn.Module):
             ),
             -1,
         )
+        #batch x 507 x85
 
         if targets is None:
             return output, 0
@@ -233,7 +232,6 @@ class YOLOLayer(nn.Module):
 
 class Darknet(nn.Module):
     """YOLOv3 object detection model"""
-
     def __init__(self, config_path, img_size=416):
         super(Darknet, self).__init__()
         self.module_defs = parse_model_config(config_path)

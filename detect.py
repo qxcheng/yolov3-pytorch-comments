@@ -40,17 +40,13 @@ if __name__ == "__main__":
 
     os.makedirs("output", exist_ok=True)
 
-    # Set up model
-    model = Darknet(opt.model_def, img_size=opt.img_size).to(device)
-
+    model = Darknet(opt.model_def, img_size=opt.img_size).to(device)  # Set up model
     if opt.weights_path.endswith(".weights"):
-        # Load darknet weights
-        model.load_darknet_weights(opt.weights_path)
+        model.load_darknet_weights(opt.weights_path)                  # Load darknet weights
     else:
-        # Load checkpoint weights
-        model.load_state_dict(torch.load(opt.weights_path))
+        model.load_state_dict(torch.load(opt.weights_path))           # Load checkpoint weights
 
-    model.eval()  # Set in evaluation mode
+    model.eval()                                                      # Set in evaluation mode
 
     dataloader = DataLoader(
         ImageFolder(opt.image_folder, img_size=opt.img_size),
@@ -63,14 +59,14 @@ if __name__ == "__main__":
 
     Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
-    imgs = []  # Stores image paths
+    imgs = []            # Stores image paths
     img_detections = []  # Stores detections for each image index
 
     print("\nPerforming object detection:")
     prev_time = time.time()
     for batch_i, (img_paths, input_imgs) in enumerate(dataloader):
         # Configure input
-        input_imgs = Variable(input_imgs.type(Tensor))
+        input_imgs = Variable(input_imgs.type(Tensor))  # [1, 3, 416, 416]
 
         # Get detections
         with torch.no_grad():
@@ -137,5 +133,6 @@ if __name__ == "__main__":
         plt.gca().xaxis.set_major_locator(NullLocator())
         plt.gca().yaxis.set_major_locator(NullLocator())
         filename = path.split("/")[-1].split(".")[0]
+        filename = path.split("\\")[-1]
         plt.savefig(f"output/{filename}.png", bbox_inches="tight", pad_inches=0.0)
         plt.close()
